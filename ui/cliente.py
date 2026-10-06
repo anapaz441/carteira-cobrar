@@ -30,6 +30,19 @@ def cartao_cliente(cli: dict, autor: str, chave: str) -> None:
             f"{ui.brl(cli['vl_faixa'])} na faixa 16–60d · {ui.brl(cli['vl_vencido'])} total · "
             f"{cli['qt_titulos']} título(s) · {cli.get('dias_atraso_max') or 0} dias (máx.)",
         )
+        if cli.get("acordo_ativo"):
+            detalhes = [cli.get("acordo") or "Ativo"]
+            if cli.get("acordo_parcelas"):
+                detalhes.append(cli["acordo_parcelas"])
+            if cli.get("vl_parcela"):
+                detalhes.append(f"parcela {ui.brl(cli['vl_parcela'])}")
+            if cli.get("prox_vcto"):
+                detalhes.append(f"próxima {ui.data_br(cli['prox_vcto'])}")
+            if cli.get("atrasadas"):
+                detalhes.append(f"⚠️ {cli['atrasadas']} parcela(s) atrasada(s)")
+            _linha("🤝 Acordo", " · ".join(detalhes))
+        else:
+            _linha("Acordo", cli.get("acordo") or config.SEM_ACORDO)
         _linha(
             "Contatos no mês",
             f"{cli['contatos']} de {config.META_CONTATOS} (✅ {cli['efetivos']} efetivo(s))",

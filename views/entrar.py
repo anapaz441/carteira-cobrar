@@ -32,10 +32,12 @@ else:
             "`GESTOR_SENHA=sua-senha` no arquivo `.env` e reinicie o app."
         )
         st.stop()
-    senha = caixa.text_input("Senha do gestor", type="password")
+    matricula = caixa.text_input("Matrícula").strip()
+    senha = caixa.text_input("Senha", type="password")
     if caixa.button("Entrar", type="primary", width="stretch"):
-        if hmac.compare_digest(senha.encode(), config.GESTOR_SENHA.encode()):
-            sessao.entrar(sessao.PERFIL_GESTOR, sessao.USUARIO_GESTOR, "Gestão")
+        senha_ok = hmac.compare_digest(senha.encode(), config.GESTOR_SENHA.encode())
+        if matricula in config.GESTORES and senha_ok:
+            sessao.entrar(sessao.PERFIL_GESTOR, matricula, f"Gestão · {matricula}")
             st.rerun()
         else:
-            caixa.error("Senha incorreta.")
+            caixa.error("Matrícula ou senha incorreta.")

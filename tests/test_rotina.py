@@ -32,3 +32,19 @@ def test_rotina_prioriza_sem_contato_e_mais_antigos():
     # "e" já teve contato hoje; "d" está regularizado
     assert selecionar_rotina(df, {"e"}, 10) == ["b", "c", "a"]
     assert selecionar_rotina(df, set(), 2) == ["b", "c"]
+
+
+def test_acordo_em_dia_vai_para_o_fim():
+    df = pl.DataFrame(
+        {
+            "codcli": ["a", "b"],
+            "status": [progresso.STATUS_SEM_CONTATO] * 2,
+            "contatos": [0, 0],
+            "ult_quando": [None, None],
+            "prioridade": [1, 7],
+            "vl_faixa": [100.0, 1.0],
+            "acordo_em_dia": [True, False],
+        },
+        schema_overrides={"ult_quando": pl.Datetime},
+    )
+    assert selecionar_rotina(df, set(), 2) == ["b", "a"]

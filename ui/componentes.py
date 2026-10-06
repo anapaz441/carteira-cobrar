@@ -60,58 +60,84 @@ def rodape_atualizacao() -> None:
     )
 
 
-def grafico_progresso_cobradores(resumo: pl.DataFrame, ritmo: float) -> go.Figure:
-    """Barra horizontal: % da meta de contatos por cobrador + linha do ritmo esperado."""
-    d = resumo.sort("progresso")
-    fig = go.Figure(
-        go.Bar(
-            x=d["progresso"].to_list(),
-            y=d["nome"].to_list(),
-            orientation="h",
-            marker={"color": COR_SERIE, "cornerradius": 4},
-            text=[pct(v) for v in d["progresso"].to_list()],
-            textposition="outside",
-            hovertemplate="%{y}: %{x:.0%} da meta<extra></extra>",
+# Paleta categórica validada (ordem fixa; a cor segue o cobrador, não a posição)
+PALETA = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
+
+_LAYOUT_BASE = {
+    "margin": {"l": 10, "r": 10, "t": 10, "b": 10},
+    "plot_bgcolor": "rgba(0,0,0,0)",
+    "paper_bgcolor": "rgba(0,0,0,0)",
+    "hovermode": "x unified",
+    "font": {"color": "#334E68"},
+}
+
+
+def _eixo_dias(fig: go.Figure) -> None:
+    fig.update_xaxes(tickformat="%d/%m", dtick=86400000, showgrid=False, ticks="outside")
+
+
+def grafico_progresso_diario(serie: pl.DataFrame, esperado: pl.DataFrame) -> go.Figure:
+    """Linha por cobrador: % da meta de contatos acumulada dia a dia + linha do esperado."""
+    fig = go.Figure()
+    nomes = sorted(serie["nome"].unique().to_list())
+    for i, nome in enumerate(nomes):
+        d = serie.filter(pl.col("nome") == nome).sort("dia")
+        fig.add_trace(
+            go.Scatter(
+                x=d["dia"].to_list(),
+                y=d["progresso"].to_list(),
+                name=nome,
+                mode="lines+markers",
+                line={"width": 2, "color": PALETA[i % len(PALETA)]},
+                marker={"size": 7},
+                hovertemplate=f"{nome}: %{{y:.0%}}<extra></extra>",
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=esperado["dia"].to_list(),
+            y=esperado["esperado"].to_list(),
+            name="Esperado",
+            mode="lines",
+            line={"width": 2, "color": COR_TINTA_SEC, "dash": "dash"},
+            hovertemplate="Esperado: %{y:.0%}<extra></extra>",
         )
     )
-    fig.add_vline(
-        x=ritmo,
-        line_dash="dash",
-        line_color=COR_TINTA_SEC,
-        line_width=1.5,
-        annotation_text=f"esperado hoje: {pct(ritmo)}",
-        annotation_position="top",
-    )
     fig.update_layout(
-        height=60 + 42 * d.height,
-        margin={"l": 10, "r": 30, "t": 30, "b": 10},
-        xaxis={"range": [0, 1.12], "tickformat": ".0%", "gridcolor": "#ececea"},
-        yaxis={"title": None},
-        plot_bgcolor="rgba(0,0,0,0)",
-        bargap=0.35,
+        **_LAYOUT_BASE,
+        height=340,
+        yaxis={"tickformat": ".0%", "rangemode": "tozero", "gridcolor": "#ececea"},
+        legend={"orientation": "h", "y": -0.18, "x": 0},
     )
+    _eixo_dias(fig)
     return fig
 
 
-def grafico_contatos_por_dia(contatos: pl.DataFrame, inicio: date) -> go.Figure:
-    """Ligações registradas por dia no ciclo (todos os cobradores)."""
+def grafico_contatos_por_dia(contatos: pl.DataFrame, inicio: date, ate: date) -> go.Figure:
+    """Contatos registrados por dia (SIAC + app), desde o dia 1 do mês. Dia sem contato = 0."""
+    dias = pl.DataFrame(pl.date_range(inicio, ate, interval="1d", eager=True).alias("dt_cobran"))
     por_dia = (
-        contatos.filter(pl.col("dt_cobran") >= inicio).group_by("dt_cobran").len().sort("dt_cobran")
+        dias.join(contatos.group_by("dt_cobran").len(), on="dt_cobran", how="left")
+        .with_columns(pl.col("len").fill_null(0))
+        .sort("dt_cobran")
     )
     fig = go.Figure(
-        go.Bar(
+        go.Scatter(
             x=por_dia["dt_cobran"].to_list(),
             y=por_dia["len"].to_list(),
-            marker={"color": COR_SERIE, "cornerradius": 4},
-            hovertemplate="%{x|%d/%m}: %{y} ligações<extra></extra>",
+            mode="lines+markers",
+            line={"width": 2, "color": COR_SERIE},
+            marker={"size": 8},
+            fill="tozeroy",
+            fillcolor="rgba(0,165,172,0.08)",
+            hovertemplate="%{x|%d/%m}: %{y} contatos<extra></extra>",
         )
     )
     fig.update_layout(
-        height=260,
-        margin={"l": 10, "r": 10, "t": 10, "b": 10},
-        xaxis={"tickformat": "%d/%m"},
-        yaxis={"title": None, "gridcolor": "#ececea"},
-        plot_bgcolor="rgba(0,0,0,0)",
-        bargap=0.25,
+        **_LAYOUT_BASE,
+        height=280,
+        yaxis={"rangemode": "tozero", "gridcolor": "#ececea"},
+        showlegend=False,
     )
+    _eixo_dias(fig)
     return fig

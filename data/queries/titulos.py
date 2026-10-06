@@ -40,6 +40,10 @@ _SQL_AGREGA = """
                                                               AND CURRENT_DATE - :dmin), 0)
                                                       AS vl_faixa,
            CURRENT_DATE - MIN(a.vencimento)           AS dias_atraso_max,
+           -- dia em que o título mais antigo DA FAIXA completou 16 dias de atraso
+           MIN(a.vencimento) FILTER (WHERE a.vencimento BETWEEN CURRENT_DATE - :dmax
+                                                          AND CURRENT_DATE - :dmin) + :dmin
+                                                      AS entrou_faixa_em,
            STRING_AGG(DISTINCT a.cd_loja, ',')        AS lojas
     FROM abertos a JOIN alvo USING (codclifor)
     GROUP BY a.codclifor
@@ -65,7 +69,7 @@ _SQL_AGREGA = """
     GROUP BY codcli
 )
 SELECT g.codclifor AS codcli, p.cd_loja AS loja_principal, g.lojas,
-       g.qt_titulos, g.vl_vencido, g.qt_faixa, g.vl_faixa, g.dias_atraso_max,
+       g.qt_titulos, g.vl_vencido, g.qt_faixa, g.vl_faixa, g.dias_atraso_max, g.entrou_faixa_em,
        c.cliente, c.fantasia,
        NULLIF(TRIM(COALESCE(c.ddd, '') || ' ' || COALESCE(c.telefone, '')), '')   AS telefone,
        NULLIF(TRIM(COALESCE(c.nu_dddsms, '') || ' ' || COALESCE(c.nu_telsms, '')), '') AS whatsapp,

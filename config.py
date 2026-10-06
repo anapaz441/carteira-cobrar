@@ -88,6 +88,8 @@ CAMINHO_BANCO_CARTEIRA = os.getenv("CARTEIRA_DB_PATH", "dados_app/carteira.db")
 # Senha da visão de GESTOR (gerar carteira, ver todos). Fica no .env.
 # ---------------------------------------------------------------------------
 GESTOR_SENHA = os.getenv("GESTOR_SENHA", "")
+# Matrículas que podem entrar como gestor (todas usam a mesma senha acima)
+GESTORES = tuple(m.strip() for m in os.getenv("GESTORES", "2184,1386,8630").split(",") if m.strip())
 
 # ---------------------------------------------------------------------------
 # Rotina do dia
@@ -103,6 +105,29 @@ TIPOS_CONTATO_APP = {
     SO_ANOTACAO: "📝 Só anotação (não conta como contato)",
 }
 CANAIS_CONTATO = ["Ligação", "WhatsApp"]
+
+# ---------------------------------------------------------------------------
+# Acordos (acordo.in_situaca no SIAC)
+# ---------------------------------------------------------------------------
+ACORDO_ATIVO = ("A", "N")  # A = ativo · N = não autorizado (fechado, aguardando autorização)
+
+# Simulador de acordo — mesmas regras da tela de Acordos do SIAC (ACO000.prg)
+ACORDO_JUROS_MES = 12.0  # % ao mês (_JurosMes; é o juros gravado nos títulos)
+ACORDO_MULTA = 3.0  # % (_MultaFirma)
+ACORDO_JUROS_MIN_AUTOMATICO = 11.80  # abaixo disso (ou multa < 3%) o acordo fica "N"
+ACORDO_PARCELA_MIN = 50.0  # parcela mínima (R$)
+ACORDO_PRIMEIRO_VCTO_MAX_DIAS = 15  # 1º vencimento em até 15 dias
+ACORDO_DIAS_SEMANA = {"02": "Segunda", "03": "Terça", "04": "Quarta", "05": "Quinta", "06": "Sexta"}
+ACORDO_ROTULO = {
+    "A": "Ativo",
+    "N": "Não autorizado (aguardando)",
+    "I": "Quebrado / inativo",
+    "Q": "Quitado",
+}
+SEM_ACORDO = "Sem acordo"
+# Assinaturas no fim da observação do acordo que NÃO são só o primeiro nome do cobrador.
+# Conferir com a gestão: "PEDRO PAULO" e "PEDRO LIMA" foram considerados o Pedro (8177).
+ASSINATURAS_ACORDO = {"PEDRO PAULO": "8177", "PEDRO LIMA": "8177"}
 
 # Nomes de coluna exibidos na tela
 COLUNAS_PT = {

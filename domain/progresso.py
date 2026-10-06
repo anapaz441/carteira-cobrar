@@ -272,9 +272,101 @@ def resumo_por_loja(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def fim_do_mes(d: date) -> date:
+    return date(d.year, d.month, calendar.monthrange(d.year, d.month)[1])
+
+
+def progresso_diario(
+    contatos: pl.DataFrame,
+    carteira: pl.DataFrame,
+    inicio: date,
+    ate: date,
+    cobradores: pl.DataFrame,
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Para cada dia de `inicio` até `ate`: % da meta de contatos de cada cobrador
+    (média, por cliente, de min(contatos acumulados até o dia, META) / META).
+    Também devolve a linha "Esperado" (ritmo do calendário)."""
+    nomes = dict(cobradores.select("cod_usuario", "nome").iter_rows())
+    dias = pl.date_range(inicio, ate, interval="1d", eager=True).alias("dia")
+    grade = carteira.select("codcli", "cod_usuario").join(pl.DataFrame(dias), how="cross")
+
+    c = contatos.join(carteira.select("codcli"), on="codcli", how="inner")
+    if config.UM_CONTATO_POR_DIA:
+        c = c.unique(["codcli", "dt_cobran"])
+    por_dia = c.group_by("codcli", "dt_cobran").len().rename({"dt_cobran": "dia", "len": "n"})
+
+    grade = (
+        grade.join(por_dia, on=["codcli", "dia"], how="left")
+        .with_columns(pl.col("n").fill_null(0))
+        .sort("codcli", "dia")
+        .with_columns(pl.col("n").cum_sum().over("codcli").alias("acum"))
+        .with_columns(
+            (pl.col("acum").clip(upper_bound=config.META_CONTATOS) / config.META_CONTATOS).alias(
+                "p"
+            )
+        )
+    )
+    serie = (
+        grade.group_by("cod_usuario", "dia")
+        .agg(pl.col("p").mean().alias("progresso"))
+        .with_columns(
+            pl.col("cod_usuario")
+            .replace_strict(nomes, default=None, return_dtype=pl.Utf8)
+            .fill_null(pl.col("cod_usuario"))
+            .alias("nome")
+        )
+        .sort("nome", "dia")
+    )
+    esperado = pl.DataFrame(dias).with_columns(
+        pl.col("dia")
+        .map_elements(lambda d: ritmo_esperado(d, inicio), return_dtype=pl.Float64)
+        .alias("esperado")
+    )
+    return serie, esperado
+
+
 def ritmo_esperado(hoje: date, inicio: date) -> float:
     """Fração da meta que já deveria ter sido feita hoje (0 a 1), pelo calendário do mês."""
     fim = date(inicio.year, inicio.month, calendar.monthrange(inicio.year, inicio.month)[1])
     total = (fim - inicio).days + 1
     passados = min(max((hoje - inicio).days + 1, 0), total)
     return passados / total if total else 1.0
+
+
+def marcar_acordos(df: pl.DataFrame, acordos: pl.DataFrame) -> pl.DataFrame:
+    """Acrescenta a situação do acordo de cada cliente.
+
+    acordo_ativo:    True se o cliente tem acordo ativo no SIAC (A/N)
+    acordo:          rótulo para a tela (Ativo, Quebrado / inativo, Quitado, Sem acordo)
+    acordo_em_dia:   ativo e sem parcela vencida em aberto
+    acordo_parcelas: "3/10 pagas"
+    """
+    if acordos.is_empty():
+        acordos = pl.DataFrame(
+            schema={
+                "codcli": pl.Utf8,
+                "situacao_acordo": pl.Utf8,
+                "vl_parcela": pl.Float64,
+                "parcelas": pl.Int64,
+                "pagas": pl.Int64,
+                "atrasadas": pl.Int64,
+                "prox_vcto": pl.Date,
+                "dt_acordo": pl.Date,
+                "vl_acordo": pl.Float64,
+            }
+        )
+    out = df.join(acordos, on="codcli", how="left")
+    ativo = pl.col("situacao_acordo").is_in(list(config.ACORDO_ATIVO)).fill_null(False)
+    return out.with_columns(
+        ativo.alias("acordo_ativo"),
+        pl.col("situacao_acordo")
+        .replace_strict(config.ACORDO_ROTULO, default=None, return_dtype=pl.Utf8)
+        .fill_null(config.SEM_ACORDO)
+        .alias("acordo"),
+        (ativo & (pl.col("atrasadas").fill_null(0) == 0)).alias("acordo_em_dia"),
+        pl.when(pl.col("parcelas").fill_null(0) > 0)
+        .then(pl.format("{}/{} pagas", pl.col("pagas"), pl.col("parcelas")))
+        .otherwise(pl.lit(None))
+        .alias("acordo_parcelas"),
+        pl.col("atrasadas").fill_null(0),
+    )

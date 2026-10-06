@@ -11,7 +11,7 @@ Perfis (tela **Entrar**):
   aberto na faixa, recuperado e % recuperado), tabela de clientes com contatos "x de 6",
   todos os telefones, débitos e último contato, além da **Rotina do dia** (lista de quem
   ligar, com campo para escrever a anotação de cada cliente).
-- **Gestor** (senha `GESTOR_SENHA` no `.env`): Visão geral, carteira de qualquer
+- **Gestor** (matrícula 2184, 1386 ou 8630 + senha `GESTOR_SENHA` do `.env`): Visão geral, carteira de qualquer
   cobrador, Gerar carteira e Cobradores.
 
 ## Regras de negócio (todas em `config.py`)
@@ -24,7 +24,7 @@ Perfis (tela **Entrar**):
 | Equilíbrio do valor | débito 16–60 dias (e, com peso menor, o débito total) |
 | Contato | ligação registrada no SIAC **ou** anotação feita no app (exceto "só anotação"), no máximo 1 por dia por cliente |
 | Recuperado | valor pago dos títulos que estavam na faixa 16–60 dias quando o cliente entrou na carteira |
-| Rotina do dia | sem contato primeiro → menos contatos → contato mais antigo → loja crítica → maior débito na faixa |
+| Rotina do dia | acordos do cobrador com parcela vencida primeiro → sem contato → menos contatos → contato mais antigo → loja crítica → maior débito na faixa |
 | Contato efetivo | exclui 03 ocupado, 04 não atende, 05 número errado, 06/07 responsável ausente/ocupado |
 | Ciclo | mensal; quem entra na faixa no meio do mês é encaixado sem mexer nos demais |
 

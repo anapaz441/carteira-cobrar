@@ -206,9 +206,12 @@ def salvar_ciclo(mes: str, inicio: str, distribuicao: pd.DataFrame) -> int:
 
 
 def adicionar_clientes(ciclo_id: int, distribuicao: pd.DataFrame, origem: str = "novo") -> None:
+    """Acrescenta clientes novos. Quem JÁ está na carteira do mês fica com o cobrador que já
+    tem (OR IGNORE): um cliente é sempre de um cobrador só — para trocar, use mover_cliente."""
     agora = datetime.now().isoformat(timespec="seconds")
+    sql = _INSERT_CARTEIRA.replace("INSERT OR REPLACE", "INSERT OR IGNORE")
     with _conectar() as con:
-        con.executemany(_INSERT_CARTEIRA, _linhas_carteira(ciclo_id, distribuicao, origem, agora))
+        con.executemany(sql, _linhas_carteira(ciclo_id, distribuicao, origem, agora))
 
 
 def mover_cliente(ciclo_id: int, codcli: str, cod_usuario: str) -> None:
@@ -292,3 +295,22 @@ def rotina_do_dia(cod_usuario: str, dia: str) -> list[str]:
             (cod_usuario, dia),
         ).fetchall()
     return [r[0] for r in rows]
+
+
+def reatribuir(ciclo_id: int, pares: list[tuple[str, str]], origem: str = "relacionamento") -> None:
+    """Troca o cobrador de vários clientes de uma vez, mantendo a data de entrada e os
+    valores iniciais (o recuperado continua contando desde a entrada original)."""
+    with _conectar() as con:
+        con.executemany(
+            "UPDATE carteira SET cod_usuario = ?, origem = ? WHERE ciclo_id = ? AND codcli = ?",
+            [(cod_usuario, origem, ciclo_id, codcli) for codcli, cod_usuario in pares],
+        )
+
+
+def remover_clientes(ciclo_id: int, codigos: list[str]) -> None:
+    """Tira clientes da carteira do ciclo (ex.: não estão mais na faixa 16–60 dias)."""
+    with _conectar() as con:
+        con.executemany(
+            "DELETE FROM carteira WHERE ciclo_id = ? AND codcli = ?",
+            [(ciclo_id, c) for c in codigos],
+        )

@@ -138,16 +138,65 @@ def test_anotacoes_como_contatos_ignora_so_anotacao():
 
 def test_contato_do_app_efetivo_e_sem_retorno():
     cart = _carteira()
-    notas = pl.DataFrame({
-        "codcli": ["2", "2", "3"],
-        "cod_usuario": ["A", "A", "B"],
-        "criado_em": ["2026-10-03T09:00:00", "2026-10-04T09:00:00", "2026-10-04T10:00:00"],
-        "cd_negocia": ["EF", "SR", "SO_ANOTACAO"],
-        "canal": ["WhatsApp", "Ligação", None],
-        "resultado": ["x", "y", "z"],
-        "texto": ["a", "b", "c"],
-    })
+    notas = pl.DataFrame(
+        {
+            "codcli": ["2", "2", "3"],
+            "cod_usuario": ["A", "A", "B"],
+            "criado_em": ["2026-10-03T09:00:00", "2026-10-04T09:00:00", "2026-10-04T10:00:00"],
+            "cd_negocia": ["EF", "SR", "SO_ANOTACAO"],
+            "canal": ["WhatsApp", "Ligação", None],
+            "resultado": ["x", "y", "z"],
+            "texto": ["a", "b", "c"],
+        }
+    )
     r = progresso.contar_contatos(progresso.anotacoes_como_contatos(notas), cart)
     linha = r.filter(pl.col("codcli") == "2").row(0, named=True)
     assert linha["contatos"] == 2 and linha["efetivos"] == 1
     assert r.filter(pl.col("codcli") == "3").is_empty()  # só anotação não conta
+
+
+def test_progresso_diario_acumula_desde_dia_1():
+    cart = pl.DataFrame({"codcli": ["1", "2"], "cod_usuario": ["A", "A"]})
+    contatos = pl.DataFrame(
+        {
+            "codcli": ["1", "1", "1", "2"],
+            "dt_cobran": [
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                date(2026, 10, 3),
+                date(2026, 10, 3),
+            ],
+            "cd_usuario": ["A"] * 4,
+            "cd_negocia": ["04"] * 4,
+        }
+    )
+    cob = pl.DataFrame({"cod_usuario": ["A"], "nome": ["Ana"], "tipo": ["Integral"]})
+    serie, esperado = progresso.progresso_diario(
+        contatos, cart, date(2026, 10, 1), date(2026, 10, 3), cob
+    )
+    vals = serie.sort("dia")["progresso"].to_list()
+    # dia 1: cliente1=1/6, cliente2=0 → 1/12 | dia 2 igual | dia 3: 2/6 e 1/6 → 3/12
+    assert vals == pytest.approx([1 / 12, 1 / 12, 3 / 12])
+    assert esperado["esperado"][0] == pytest.approx(1 / 31)
+
+
+def test_marcar_acordos():
+    df = pl.DataFrame({"codcli": ["1", "2", "3", "4"]})
+    acordos = pl.DataFrame(
+        {
+            "codcli": ["1", "2", "3"],
+            "situacao_acordo": ["A", "I", "Q"],
+            "vl_parcela": [100.0, 50.0, 10.0],
+            "parcelas": [10, 5, 2],
+            "pagas": [3, 1, 2],
+            "atrasadas": [1, 4, 0],
+            "prox_vcto": [date(2026, 10, 9), date(2026, 9, 1), None],
+            "dt_acordo": [date(2026, 9, 1)] * 3,
+            "vl_acordo": [1000.0, 250.0, 20.0],
+        }
+    )
+    r = progresso.marcar_acordos(df, acordos).sort("codcli")
+    assert r["acordo_ativo"].to_list() == [True, False, False, False]
+    assert r["acordo"].to_list() == ["Ativo", "Quebrado / inativo", "Quitado", "Sem acordo"]
+    assert r["acordo_em_dia"].to_list() == [False, False, False, False]  # 1 tem parcela atrasada
+    assert r["acordo_parcelas"][0] == "3/10 pagas"

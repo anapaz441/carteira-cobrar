@@ -24,9 +24,11 @@ def get_conn():
         username=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME"),
-        pool_size=3,  # conexões mantidas abertas
-        max_overflow=3,  # extras no pico → teto de 6 conexões para este app
-        pool_timeout=30,  # espera até 30s por uma conexão livre
+        pool_size=5,  # conexões mantidas abertas
+        max_overflow=5,  # extras no pico → teto de 10 conexões para este app
+        pool_timeout=60,  # espera até 60s por uma conexão livre
         pool_recycle=1800,  # recicla conexões com mais de 30 min
         pool_pre_ping=True,  # descarta conexões quebradas antes de usar
+        # Nenhuma consulta pode passar de 60s: evita conexão presa e o pool esgotar
+        connect_args={"options": "-c statement_timeout=60000"},
     )

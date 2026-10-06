@@ -1,7 +1,5 @@
 """Tela: Gerar carteira (gestão) — monta a carteira do mês, encaixa novos e ajusta."""
 
-from datetime import date
-
 import polars as pl
 import streamlit as st
 
@@ -41,14 +39,8 @@ st.markdown(
 st.subheader("1. Carteira do mês")
 mes = servico.mes_atual()
 ciclo = store.obter_ciclo(mes)
-col1, col2 = st.columns(2)
-col1.text_input("Mês", f"{mes[5:]}/{mes[:4]}", disabled=True)
-inicio = col2.date_input(
-    "Contar contatos a partir de",
-    value=date.today(),
-    format="DD/MM/YYYY",
-    help="Ligações registradas no SIAC a partir desta data contam para a meta.",
-)
+st.text_input("Mês", f"{mes[5:]}/{mes[:4]}", disabled=True)
+st.caption("Os contatos do mês contam a partir do dia 1.")
 
 if st.button("🔎 Ver prévia da distribuição", type="secondary"):
     with st.spinner("Buscando clientes em atraso no SIAC..."):
@@ -100,7 +92,7 @@ if "previa" in st.session_state:
         refazer_ok = st.checkbox("Sim, quero refazer a carteira do mês")
     if st.button("💾 Salvar carteira do mês", type="primary", disabled=not refazer_ok):
         with st.spinner("Gerando e salvando..."):
-            servico.gerar_carteira(mes, inicio, dist)
+            servico.gerar_carteira(mes, dist=dist)
         st.session_state.pop("previa", None)
         st.success("Carteira salva! Os cobradores já podem ver em **Minha carteira**.")
         st.rerun()
@@ -143,8 +135,123 @@ if ciclo:
             st.success(f"{qtd} cliente(s) distribuído(s) sem mexer na carteira atual.")
             st.rerun()
 
-    # ------------------------ 3. ajuste manual -------------------------------
-    st.subheader("3. Trocar cliente de cobrador")
+    # ---------------- 3. redistribuir pelo relacionamento --------------------
+    st.subheader("3. Refazer a carteira deste mês pelo relacionamento")
+    st.markdown(
+        "Usa **só os clientes que hoje estão na faixa 16–60 dias** e mantém cada um com "
+        "**quem já fala com ele**: primeiro quem **fechou o acordo ativo**; depois quem "
+        "**mais ligou nos últimos 60 dias** — os clientes das **lojas críticas** escolhem "
+        "primeiro. Cada cobrador tem um **teto** "
+        "(a fatia justa: integral ~19%, parcial ~14%); se o preferido estiver cheio, vai para o "
+        "próximo que já falou com o cliente, e quem sobrar é dividido de forma equilibrada.  \n"
+        "Só troca o cobrador — anotações, contatos e o recuperado de cada cliente continuam."
+    )
+    if st.button("🔎 Ver prévia pelo relacionamento"):
+        with st.spinner("Lendo o histórico de ligações e os acordos no SIAC..."):
+            st.session_state["previa_rel"] = servico.previa_relacionamento(ciclo)
+
+    if "previa_rel" in st.session_state:
+        prev, saem = st.session_state["previa_rel"]
+        nomes_rel = dict(servico.cobradores(False).select("cod_usuario", "nome").iter_rows())
+        resumo_rel = (
+            prev.group_by("cod_usuario")
+            .agg(
+                pl.len().alias("clientes"),
+                pl.col("vl_faixa").sum().alias("vl_faixa"),
+                (pl.col("motivo") == "Fechou o acordo").sum().alias("acordo"),
+                pl.col("motivo").str.contains("falou").sum().alias("relacionamento"),
+                pl.col("motivo").str.starts_with("Equilíbrio").sum().alias("equilibrio"),
+                (pl.col("cod_usuario") == pl.col("cod_antigo")).sum().alias("ja_era_dele"),
+            )
+            .join(
+                prev.filter(pl.col("cod_antigo").is_not_null())
+                .group_by("cod_antigo")
+                .len()
+                .rename({"cod_antigo": "cod_usuario", "len": "antes"}),
+                on="cod_usuario",
+                how="full",
+                coalesce=True,
+            )
+            .with_columns(
+                pl.col("cod_usuario")
+                .replace_strict(nomes_rel, default=None, return_dtype=pl.Utf8)
+                .fill_null(pl.col("cod_usuario"))
+                .alias("nome"),
+                pl.all().exclude("cod_usuario", "nome", "vl_faixa").fill_null(0),
+            )
+            .sort("nome")
+        )
+        mudam = prev.filter(pl.col("cod_usuario") != pl.col("cod_antigo")).height
+        entram = prev.filter(pl.col("cod_antigo").is_null()).height
+        st.info(
+            f"Carteira nova: **{prev.height} clientes** (só quem está hoje na faixa 16–60d). "
+            f"**{mudam}** mudam de cobrador · **{entram}** entram (chegaram na faixa depois) · "
+            f"**{saem.height}** saem (não estão mais na faixa)."
+        )
+        st.dataframe(
+            resumo_rel.select(
+                "nome",
+                "antes",
+                "clientes",
+                "vl_faixa",
+                "acordo",
+                "relacionamento",
+                "equilibrio",
+                "ja_era_dele",
+            ).to_pandas(),
+            hide_index=True,
+            width="stretch",
+            column_config={
+                "nome": "Cobrador",
+                "antes": "Clientes hoje",
+                "clientes": "Clientes depois",
+                "vl_faixa": st.column_config.NumberColumn("Débito 16–60d (R$)", format="localized"),
+                "acordo": "Por acordo",
+                "relacionamento": "Por ligações",
+                "equilibrio": "Por equilíbrio",
+                "ja_era_dele": "Já eram dele(a)",
+            },
+        )
+        with st.expander("Ver cliente a cliente"):
+            st.dataframe(
+                prev.with_columns(
+                    pl.col("cod_antigo")
+                    .replace_strict(nomes_rel, default=None, return_dtype=pl.Utf8)
+                    .alias("antes"),
+                    pl.col("cod_usuario")
+                    .replace_strict(nomes_rel, default=None, return_dtype=pl.Utf8)
+                    .alias("depois"),
+                )
+                .select(
+                    "codcli", "cliente", "loja_principal", "vl_faixa", "antes", "depois", "motivo"
+                )
+                .to_pandas(),
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "codcli": "Código",
+                    "cliente": "Cliente",
+                    "loja_principal": "Loja",
+                    "vl_faixa": st.column_config.NumberColumn(
+                        "Débito 16–60d (R$)", format="localized"
+                    ),
+                    "antes": "Cobrador hoje",
+                    "depois": "Novo cobrador",
+                    "motivo": "Motivo",
+                },
+            )
+        ok = st.checkbox(
+            f"Sim, quero aplicar na carteira de {mes[5:]}/{mes[:4]} "
+            "(as próximas carteiras continuam pela regra de equilíbrio)"
+        )
+        if st.button("✅ Aplicar relacionamento", type="primary", disabled=not ok):
+            trocados = servico.aplicar_relacionamento(ciclo["id"], prev, saem)
+            st.session_state.pop("previa_rel", None)
+            st.success(f"Pronto! {trocados} cliente(s) mudaram de cobrador.")
+            st.rerun()
+
+    # ------------------------ 4. ajuste manual -------------------------------
+    st.subheader("4. Trocar cliente de cobrador")
     cart = servico.carteira_salva(ciclo["id"])
     nomes = dict(servico.cobradores(False).select("cod_usuario", "nome").iter_rows())
     rot = dict(
