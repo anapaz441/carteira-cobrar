@@ -12,12 +12,13 @@ COR_SERIE = "#2a78d6"  # cor única das barras (uma série só, sem legenda)
 COR_TINTA_SEC = "#52514e"
 
 
-def brl(valor: float | None) -> str:
-    """Formata em reais: 12345.6 → R$ 12.345,60"""
+def brl(valor: float | None, markdown: bool = True) -> str:
+    """Formata em reais: 12345.6 → R$ 12.345,60.
+    Em texto com markdown o "$" é escapado (senão o Streamlit entende como fórmula)."""
     if valor is None:
         return "—"
     s = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"R$ {s}"
+    return f"R\\$ {s}" if markdown else f"R$ {s}"
 
 
 def brl_curto(valor: float) -> str:
@@ -26,7 +27,7 @@ def brl_curto(valor: float) -> str:
         return f"R$ {valor / 1_000_000:,.2f} mi".replace(".", ",")
     if abs(valor) >= 1_000:
         return f"R$ {valor / 1_000:,.0f} mil".replace(",", ".")
-    return brl(valor)
+    return brl(valor, markdown=False)
 
 
 def pct(v: float) -> str:

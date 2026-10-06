@@ -55,8 +55,10 @@ if st.button("🔎 Ver prévia da distribuição", type="secondary"):
 if "previa" in st.session_state:
     dist, conf = st.session_state["previa"]
     st.success(
-        f"{dist.height} clientes · débito 16–60d {ui.brl(dist['vl_faixa'].sum())} · "
-        f"débito vencido total {ui.brl(dist['vl_vencido'].sum())}"
+        f"**{dist.height} clientes** · títulos de 16–60 dias: "
+        f"**{ui.brl(dist['vl_faixa'].sum())}** · tudo que esses clientes devem vencido "
+        f"(inclui títulos com mais de 60 e menos de 16 dias): "
+        f"**{ui.brl(dist['vl_vencido'].sum())}**"
     )
     st.dataframe(
         conf.select(
