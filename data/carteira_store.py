@@ -48,15 +48,15 @@ CREATE TABLE IF NOT EXISTS carteira (
 );
 """
 
-# Cobradores iniciais = os códigos que mais registraram ligações nos últimos 30 dias.
-# Nomes e tipo devem ser ajustados na tela "Cobradores".
+# Cobradores iniciais (matrículas do SIAC informadas pela Ana em 06/10/2026).
+# Nomes podem ser ajustados na tela "Cobradores".
 _COBRADORES_INICIAIS = [
     ("8177", "Cobrador 8177", "Integral"),
-    ("4366", "Cobrador 4366", "Integral"),
-    ("2281", "Cobrador 2281", "Integral"),
-    ("3522", "Cobrador 3522", "Parcial"),
+    ("3522", "Cobrador 3522", "Integral"),
+    ("8526", "Cobrador 8526", "Integral"),
+    ("2281", "Cobrador 2281", "Parcial"),
+    ("4366", "Cobrador 4366", "Parcial"),
     ("4369", "Cobrador 4369", "Parcial"),
-    ("8526", "Cobrador 8526", "Parcial"),
 ]
 
 
