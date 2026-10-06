@@ -1,4 +1,7 @@
-"""Tela: Entrar — escolhe o perfil (cobrador ou gestor)."""
+"""Tela: Entrar — a pessoa escolhe o próprio nome numa lista (sem senha).
+
+Gestoras (config.GESTORES) entram na visão de gestão; cobradores ativos entram só na
+carteira deles. O perfil sai automaticamente do nome escolhido."""
 
 import streamlit as st
 
@@ -12,27 +15,25 @@ with caixa:
     st.title("📞 Carteira de Cobrança")
     st.caption("Cobrança 16–60 dias · Kaizen")
 
-tipo = caixa.radio("Como você vai usar?", ["Sou cobrador(a)", "Sou gestor(a)"], horizontal=True)
+cob = servico.cobradores(somente_ativos=True)
+cobradores = {c: n for c, n in cob.select("cod_usuario", "nome").iter_rows()}
+gestoras = {c: n for c, n in config.GESTORES.items() if c not in cobradores}
 
-if tipo.startswith("Sou cobrador"):
-    cob = servico.cobradores(somente_ativos=True)
-    nomes = dict(cob.select("cod_usuario", "nome").iter_rows())
-    cod = caixa.selectbox(
-        "Seu nome", list(nomes), format_func=nomes.get, index=None, placeholder="Escolha seu nome"
-    )
-    if caixa.button("Entrar", type="primary", disabled=cod is None, width="stretch"):
-        sessao.entrar(sessao.PERFIL_COBRADOR, cod, nomes[cod])
-        st.rerun()
-else:
-    gestoras = config.GESTORES
-    cod = caixa.selectbox(
-        "Seu nome",
-        list(gestoras),
-        format_func=gestoras.get,
-        index=None,
-        placeholder="Escolha seu nome",
-        key="gestora",
-    )
-    if caixa.button("Entrar", type="primary", disabled=cod is None, width="stretch"):
+# gestoras primeiro, depois cobradores (cada grupo em ordem alfabética)
+pessoas = {c: f"{n} · Gestão" for c, n in sorted(gestoras.items(), key=lambda x: x[1])}
+pessoas |= {c: f"{n} · Cobrador(a)" for c, n in sorted(cobradores.items(), key=lambda x: x[1])}
+
+cod = caixa.selectbox(
+    "Quem é você?",
+    list(pessoas),
+    format_func=pessoas.get,
+    index=None,
+    placeholder="Escolha seu nome",
+    key="pessoa",
+)
+if caixa.button("Entrar", type="primary", disabled=cod is None, width="stretch"):
+    if cod in gestoras:
         sessao.entrar(sessao.PERFIL_GESTOR, cod, gestoras[cod])
-        st.rerun()
+    else:
+        sessao.entrar(sessao.PERFIL_COBRADOR, cod, cobradores[cod])
+    st.rerun()

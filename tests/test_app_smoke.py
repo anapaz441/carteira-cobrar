@@ -201,18 +201,26 @@ def test_login_e_perfis(siac_falso):
 
     # Sem login: só a tela de entrar
     at = _app()
-    assert at.radio[0].options == ["Sou cobrador(a)", "Sou gestor(a)"]
+    # Uma lista só com todos os nomes, sem senha nem escolha de perfil
+    assert not at.radio and not at.text_input
+    sel = next(s for s in at.selectbox if s.label == "Quem é você?")
+    assert sel.options[:3] == ["Ana · Gestão", "Angélica · Gestão", "Carla · Gestão"]
+    assert len(sel.options) == 3 + len(COBS)
+    assert all(o.endswith("· Cobrador(a)") for o in sel.options[3:])
 
-    # Gestora: escolhe o nome, sem senha
-    at.radio[0].set_value("Sou gestor(a)").run()
-    assert not at.text_input  # não pede matrícula nem senha
-    sel = next(s for s in at.selectbox if s.label == "Seu nome")
-    assert sel.options == ["Ana", "Angélica", "Carla"]
+    # Gestora → perfil de gestão
     sel.set_value("2184").run()
     at.button[0].click().run()
     assert at.session_state["perfil"] == "gestor"
     assert at.session_state["nome_usuario"] == "Angélica"
     assert at.session_state["cod_usuario"] == "2184"
+
+    # Cobrador → perfil de cobrador
+    at = _app()
+    next(s for s in at.selectbox if s.label == "Quem é você?").set_value("8177").run()
+    at.button[0].click().run()
+    assert at.session_state["perfil"] == "cobrador"
+    assert at.session_state["cod_usuario"] == "8177"
 
     carteira_store.inicializar()
     servico.gerar_carteira(servico.mes_atual(), HOJE)

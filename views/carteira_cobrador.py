@@ -12,6 +12,7 @@ from domain import progresso, servico
 from ui import componentes as ui
 from ui import sessao
 from ui.cliente import cartao_cliente
+from ui.simulador import calculadora_acordo
 
 ciclo = ui.seletor_ciclo()
 
@@ -335,5 +336,28 @@ if escolhido:
     cli = next(r for r in meus.iter_rows(named=True) if r["codcli"] == escolhido)
     with st.container(border=True, key="cartao_avulso"):
         cartao_cliente(cli, sessao.cod_usuario(), chave=f"avulso_{escolhido}")
+
+# ---------------------------- simulador de acordo --------------------------
+st.divider()
+st.subheader("🧮 Simulador de acordo")
+st.caption(
+    "Mesmas contas da tela de Acordos do SIAC. Só simula — o acordo continua sendo lançado no SIAC."
+)
+# clientes da carteira + clientes dos meus acordos (fora da faixa também)
+rot_sim = dict(rotulos)
+if not acordos.is_empty():
+    for r in acordos.select("codcli", "cliente").iter_rows():
+        rot_sim.setdefault(r[0], f"{r[0]} · {r[1] or ''} (acordo)")
+cli_sim = st.selectbox(
+    "Cliente para simular",
+    sorted(rot_sim),
+    format_func=rot_sim.get,
+    index=None,
+    placeholder="Busque pelo código ou nome",
+    key="sim_cliente",
+)
+if cli_sim:
+    with st.container(border=True, key="cartao_simulador"):
+        calculadora_acordo(cli_sim, chave=f"sim_{cli_sim}")
 
 ui.rodape_atualizacao()
