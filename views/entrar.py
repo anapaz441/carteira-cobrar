@@ -1,7 +1,9 @@
-"""Tela: Entrar — a pessoa escolhe o próprio nome numa lista (sem senha).
+"""Tela: Entrar — a pessoa escolhe o próprio nome numa lista.
 
-Gestoras (config.GESTORES) entram na visão de gestão; cobradores ativos entram só na
-carteira deles. O perfil sai automaticamente do nome escolhido."""
+Gestoras (config.GESTORES) digitam a senha GESTOR_SENHA e entram na visão de gestão;
+cobradores ativos entram só com o nome, na carteira deles."""
+
+import hmac
 
 import streamlit as st
 
@@ -31,9 +33,23 @@ cod = caixa.selectbox(
     placeholder="Escolha seu nome",
     key="pessoa",
 )
+senha = ""
+if cod in gestoras:
+    if not config.GESTOR_SENHA:
+        caixa.error(
+            "A senha da gestão ainda não foi configurada. Coloque a linha "
+            "`GESTOR_SENHA=sua-senha` no `.env` (ou nos secrets do servidor) e reinicie o app."
+        )
+        st.stop()
+    senha = caixa.text_input("Senha", type="password", key="senha_gestora")
+
 if caixa.button("Entrar", type="primary", disabled=cod is None, width="stretch"):
     if cod in gestoras:
-        sessao.entrar(sessao.PERFIL_GESTOR, cod, gestoras[cod])
+        if hmac.compare_digest(senha.encode(), config.GESTOR_SENHA.encode()):
+            sessao.entrar(sessao.PERFIL_GESTOR, cod, gestoras[cod])
+            st.rerun()
+        else:
+            caixa.error("Senha incorreta.")
     else:
         sessao.entrar(sessao.PERFIL_COBRADOR, cod, cobradores[cod])
-    st.rerun()
+        st.rerun()

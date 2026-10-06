@@ -21,6 +21,7 @@ COBS = ["8177", "3522", "8526", "2281", "4366", "4369"]
 @pytest.fixture
 def siac_falso(monkeypatch, tmp_path, clientes):
     monkeypatch.setattr(config, "CAMINHO_BANCO_CARTEIRA", str(tmp_path / "carteira.db"))
+    monkeypatch.setattr(config, "GESTOR_SENHA", "segredo")
     base = clientes.to_pandas()
     base["cliente"] = "CLIENTE " + base["codcli"]
     base["fantasia"] = None
@@ -201,15 +202,21 @@ def test_login_e_perfis(siac_falso):
 
     # Sem login: só a tela de entrar
     at = _app()
-    # Uma lista só com todos os nomes, sem senha nem escolha de perfil
+    # Uma lista só com todos os nomes, sem escolha de perfil
     assert not at.radio and not at.text_input
     sel = next(s for s in at.selectbox if s.label == "Quem é você?")
     assert sel.options[:3] == ["Ana · Gestão", "Angélica · Gestão", "Carla · Gestão"]
     assert len(sel.options) == 3 + len(COBS)
     assert all(o.endswith("· Cobrador(a)") for o in sel.options[3:])
 
-    # Gestora → perfil de gestão
+    # Gestora → pede senha; errada não entra, certa entra na gestão
     sel.set_value("2184").run()
+    senha = next(t for t in at.text_input if t.label == "Senha")
+    senha.set_value("errada").run()
+    at.button[0].click().run()
+    assert any("incorreta" in e.value for e in at.error)
+    assert "perfil" not in at.session_state
+    next(t for t in at.text_input if t.label == "Senha").set_value("segredo").run()
     at.button[0].click().run()
     assert at.session_state["perfil"] == "gestor"
     assert at.session_state["nome_usuario"] == "Angélica"
@@ -218,6 +225,7 @@ def test_login_e_perfis(siac_falso):
     # Cobrador → perfil de cobrador
     at = _app()
     next(s for s in at.selectbox if s.label == "Quem é você?").set_value("8177").run()
+    assert not at.text_input  # cobrador não tem senha
     at.button[0].click().run()
     assert at.session_state["perfil"] == "cobrador"
     assert at.session_state["cod_usuario"] == "8177"

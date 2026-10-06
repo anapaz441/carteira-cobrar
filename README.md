@@ -11,7 +11,7 @@ Perfis (tela **Entrar**):
   aberto na faixa, recuperado e % recuperado), tabela de clientes com contatos "x de 6",
   todos os telefones, débitos e último contato, além da **Rotina do dia** (lista de quem
   ligar, com campo para escrever a anotação de cada cliente).
-- **Gestora** (Ana, Angélica ou Carla — na tela de entrada todos escolhem o próprio nome numa lista só, sem senha; gestoras em `config.GESTORES`): Visão geral, carteira de qualquer
+- **Gestora** (Ana, Angélica ou Carla — escolhe o nome na lista e digita a senha `GESTOR_SENHA` do `.env`; gestoras em `config.GESTORES`): Visão geral, carteira de qualquer
   cobrador, Gerar carteira e Cobradores.
 
 ## Regras de negócio (todas em `config.py`)
