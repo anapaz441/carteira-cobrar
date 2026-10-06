@@ -51,12 +51,12 @@ CREATE TABLE IF NOT EXISTS carteira (
 # Cobradores iniciais (matrículas do SIAC informadas pela Ana em 06/10/2026).
 # Nomes podem ser ajustados na tela "Cobradores".
 _COBRADORES_INICIAIS = [
-    ("8177", "Cobrador 8177", "Integral"),
-    ("3522", "Cobrador 3522", "Integral"),
-    ("8526", "Cobrador 8526", "Integral"),
-    ("2281", "Cobrador 2281", "Parcial"),
-    ("4366", "Cobrador 4366", "Parcial"),
-    ("4369", "Cobrador 4369", "Parcial"),
+    ("8177", "Pedro", "Integral"),
+    ("3522", "Cleuciane", "Integral"),
+    ("8526", "Paulo", "Integral"),
+    ("2281", "Gleyce", "Parcial"),
+    ("4366", "Samuel", "Parcial"),
+    ("4369", "Gabriel", "Parcial"),
 ]
 
 
@@ -82,6 +82,12 @@ def inicializar() -> None:
             con.executemany(
                 "INSERT INTO cobradores (cod_usuario, nome, tipo) VALUES (?, ?, ?)",
                 _COBRADORES_INICIAIS,
+            )
+        # Troca nomes provisórios ("Cobrador 1234") pelos nomes conhecidos
+        for cod, nome, _tipo in _COBRADORES_INICIAIS:
+            con.execute(
+                "UPDATE cobradores SET nome = ? WHERE cod_usuario = ? AND nome = ?",
+                (nome, cod, f"Cobrador {cod}"),
             )
 
 

@@ -18,6 +18,7 @@ def get_conn():
         "siac",
         type="sql",
         dialect="postgresql",
+        driver="psycopg2",  # obrigatório: o SQLAlchemy 2.1 tenta o psycopg 3 por padrão
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT", "5432")),
         username=os.getenv("DB_USER"),
