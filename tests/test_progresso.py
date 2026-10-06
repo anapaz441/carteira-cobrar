@@ -134,3 +134,20 @@ def test_anotacoes_como_contatos_ignora_so_anotacao():
     )
     c = progresso.anotacoes_como_contatos(notas)
     assert c.height == 1 and c["dt_cobran"][0] == date(2026, 10, 4)
+
+
+def test_contato_do_app_efetivo_e_sem_retorno():
+    cart = _carteira()
+    notas = pl.DataFrame({
+        "codcli": ["2", "2", "3"],
+        "cod_usuario": ["A", "A", "B"],
+        "criado_em": ["2026-10-03T09:00:00", "2026-10-04T09:00:00", "2026-10-04T10:00:00"],
+        "cd_negocia": ["EF", "SR", "SO_ANOTACAO"],
+        "canal": ["WhatsApp", "Ligação", None],
+        "resultado": ["x", "y", "z"],
+        "texto": ["a", "b", "c"],
+    })
+    r = progresso.contar_contatos(progresso.anotacoes_como_contatos(notas), cart)
+    linha = r.filter(pl.col("codcli") == "2").row(0, named=True)
+    assert linha["contatos"] == 2 and linha["efetivos"] == 1
+    assert r.filter(pl.col("codcli") == "3").is_empty()  # só anotação não conta

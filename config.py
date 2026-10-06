@@ -71,7 +71,7 @@ UM_CONTATO_POR_DIA = True
 
 # Resultados da ligação (cobtpneg) que NÃO contam como contato efetivo
 # (não conseguiu falar com quem decide).
-NEGOCIACAO_NAO_EFETIVA = ("03", "04", "05", "06", "07")
+NEGOCIACAO_NAO_EFETIVA = ("03", "04", "05", "06", "07", "SR")  # "SR" = sem retorno (app)
 
 # Quantos dias para trás buscar o "último contato" do cliente
 DIAS_HISTORICO_ULTIMO_CONTATO = 365
@@ -93,8 +93,16 @@ GESTOR_SENHA = os.getenv("GESTOR_SENHA", "")
 # Rotina do dia
 # ---------------------------------------------------------------------------
 ROTINA_TAMANHO_PADRAO = 15  # quantos clientes entram na rotina gerada
-# Código usado quando a pessoa só escreve uma informação (não conta como contato)
-SO_ANOTACAO = "SO_ANOTACAO"
+# Registro de contato feito no app (o cobrador escolhe o tipo e o canal)
+CONTATO_EFETIVO = "EF"  # falou com o cliente → conta como contato E como efetivo
+CONTATO_SEM_RETORNO = "SR"  # tentou e não teve retorno → conta como contato, não efetivo
+SO_ANOTACAO = "SO_ANOTACAO"  # só uma informação → não conta como contato
+TIPOS_CONTATO_APP = {
+    CONTATO_EFETIVO: "✅ Contato efetivo (falou com o cliente)",
+    CONTATO_SEM_RETORNO: "📵 Contato feito, sem retorno",
+    SO_ANOTACAO: "📝 Só anotação (não conta como contato)",
+}
+CANAIS_CONTATO = ["Ligação", "WhatsApp"]
 
 # Nomes de coluna exibidos na tela
 COLUNAS_PT = {

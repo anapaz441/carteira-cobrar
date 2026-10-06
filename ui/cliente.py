@@ -30,7 +30,10 @@ def cartao_cliente(cli: dict, autor: str, chave: str) -> None:
             f"{ui.brl(cli['vl_faixa'])} na faixa 16–60d · {ui.brl(cli['vl_vencido'])} total · "
             f"{cli['qt_titulos']} título(s) · {cli.get('dias_atraso_max') or 0} dias (máx.)",
         )
-        _linha("Contatos no mês", f"{cli['contatos']} de {config.META_CONTATOS}")
+        _linha(
+            "Contatos no mês",
+            f"{cli['contatos']} de {config.META_CONTATOS} (✅ {cli['efetivos']} efetivo(s))",
+        )
         _linha(
             "Último contato",
             f"{cli.get('ult_contato') or '—'} · {cli.get('ult_resultado') or ''}",
@@ -39,31 +42,38 @@ def cartao_cliente(cli: dict, autor: str, chave: str) -> None:
             st.caption(f"📝 {cli['ult_texto']}")
 
     with dir_:
-        opcoes = servico.tipos_resultado()
-        rotulos = dict(opcoes)
         with st.form(f"form_{chave}", clear_on_submit=True, border=True):
-            resultado = st.selectbox(
-                "Resultado",
-                [c for c, _ in opcoes],
-                format_func=rotulos.get,
+            st.markdown("**Registrar contato**")
+            tipo = st.radio(
+                "O que aconteceu?",
+                list(config.TIPOS_CONTATO_APP),
+                format_func=config.TIPOS_CONTATO_APP.get,
                 index=None,
-                placeholder="Escolha o resultado da ligação",
-                key=f"res_{chave}",
+                key=f"tipo_{chave}",
+            )
+            canal = st.radio(
+                "Por onde?",
+                config.CANAIS_CONTATO,
+                index=None,
+                horizontal=True,
+                key=f"canal_{chave}",
             )
             texto = st.text_area(
-                "Escreva a anotação",
+                "Anotação",
                 key=f"txt_{chave}",
-                height=110,
+                height=90,
                 placeholder="Ex.: falei com o João, paga R$ 500 na sexta e o resto dia 20.",
             )
-            if st.form_submit_button("💾 Salvar anotação", type="primary"):
-                if resultado is None:
-                    st.warning("Escolha o resultado (ou 'Só anotação').")
-                elif not texto.strip():
-                    st.warning("Escreva alguma coisa antes de salvar.")
+            if st.form_submit_button("💾 Salvar", type="primary", width="stretch"):
+                if tipo is None:
+                    st.warning("Marque o que aconteceu.")
+                elif tipo != config.SO_ANOTACAO and canal is None:
+                    st.warning("Marque se foi por ligação ou WhatsApp.")
+                elif tipo == config.SO_ANOTACAO and not texto.strip():
+                    st.warning("Escreva a anotação.")
                 else:
-                    servico.registrar_anotacao(cli["codcli"], autor, resultado, texto)
-                    st.toast(f"Anotação salva para {cli['codcli']}.", icon="✅")
+                    servico.registrar_contato(cli["codcli"], autor, tipo, canal, texto)
+                    st.toast(f"Registrado para {cli['codcli']}.", icon="✅")
                     st.rerun()
 
     if st.toggle("Ver histórico de contatos", key=f"hist_{chave}"):

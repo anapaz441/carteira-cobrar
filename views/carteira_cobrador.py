@@ -106,6 +106,7 @@ colunas = [
     "loja",
     "cliente_rotulo",
     "barra",
+    "efetivos",
     "telefones",
     "vl_faixa",
     "vl_vencido",
@@ -138,6 +139,11 @@ st.dataframe(
             max_value=config.META_CONTATOS,
             format=f"%d de {config.META_CONTATOS}",
         ),
+        "efetivos": st.column_config.NumberColumn(
+            "Efetivos",
+            help="Contatos em que falou com o cliente (ligação ou WhatsApp). "
+            "Sem retorno / não atende não contam aqui.",
+        ),
         "telefones": st.column_config.TextColumn("Telefones", width="medium"),
         "vl_faixa": st.column_config.NumberColumn("Débito 16–60d (R$)", format="localized"),
         "vl_vencido": st.column_config.NumberColumn("Débito total (R$)", format="localized"),
@@ -149,8 +155,9 @@ st.dataframe(
     },
 )
 st.caption(
-    "Contatos = ligações registradas no SIAC + anotações feitas aqui (máx. 1 por dia por "
-    f"cliente). O que é registrado no SIAC aparece em até {config.TTL_CONTATOS // 60} min."
+    "Contatos = ligações registradas no SIAC + contatos registrados aqui (efetivos e sem "
+    "retorno; máx. 1 por dia por cliente). Efetivos = falou com o cliente. "
+    f"O que é registrado no SIAC aparece em até {config.TTL_CONTATOS // 60} min."
 )
 
 # ---------------------------- rotina do dia --------------------------------
@@ -204,7 +211,7 @@ escolhido = st.selectbox(
 )
 if escolhido:
     cli = next(r for r in meus.iter_rows(named=True) if r["codcli"] == escolhido)
-    with st.container(border=True):
+    with st.container(border=True, key="cartao_avulso"):
         cartao_cliente(cli, sessao.cod_usuario(), chave=f"avulso_{escolhido}")
 
 ui.rodape_atualizacao()

@@ -186,16 +186,17 @@ def historico(codcli: str) -> pl.DataFrame:
     )
 
 
-def tipos_resultado() -> list[tuple[str, str]]:
-    """Opções de resultado para registrar um contato no app (cobtpneg + "só anotação")."""
-    tipos = pl.from_pandas(q_contatos.tipos_negociacao())
-    opcoes = [(r["cd_negocia"], r["ds_negocia"]) for r in tipos.iter_rows(named=True)]
-    return [*opcoes, (config.SO_ANOTACAO, "SÓ ANOTAÇÃO (não conta como contato)")]
-
-
-def registrar_anotacao(codcli: str, cod_usuario: str, cd_negocia: str, texto: str) -> None:
-    rotulos = dict(tipos_resultado())
-    store.salvar_anotacao(codcli, cod_usuario, cd_negocia, rotulos.get(cd_negocia, ""), texto)
+def registrar_contato(
+    codcli: str, cod_usuario: str, tipo: str, canal: str | None, texto: str
+) -> None:
+    """Registra no app um contato (efetivo / sem retorno) ou uma simples anotação."""
+    if tipo == config.SO_ANOTACAO:
+        canal, resultado = None, "ANOTAÇÃO"
+    elif tipo == config.CONTATO_EFETIVO:
+        resultado = f"CONTATO EFETIVO · {canal.upper()}"
+    else:
+        resultado = f"SEM RETORNO · {canal.upper()}"
+    store.salvar_anotacao(codcli, cod_usuario, tipo, canal, resultado, texto)
 
 
 def rotina(

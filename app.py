@@ -3,9 +3,10 @@
 import streamlit as st
 
 from data import carteira_store
-from ui import sessao
+from ui import estilo, sessao
 
 st.set_page_config(page_title="Carteira de Cobrança", page_icon="📞", layout="wide")
+estilo.aplicar()  # cor de destaque, cards com borda e sombra
 
 # Cria o arquivo da carteira (SQLite) e o cadastro inicial de cobradores, se faltarem
 carteira_store.inicializar()

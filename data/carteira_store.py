@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS anotacoes (
     codcli       TEXT NOT NULL,
     cod_usuario  TEXT NOT NULL,
     criado_em    TEXT NOT NULL,          -- 'AAAA-MM-DDTHH:MM:SS'
-    cd_negocia   TEXT NOT NULL,          -- código cobtpneg ou 'SO_ANOTACAO'
+    cd_negocia   TEXT NOT NULL,          -- 'EF' efetivo | 'SR' sem retorno | 'SO_ANOTACAO'
+    canal        TEXT,                   -- 'Ligação' | 'WhatsApp'
     resultado    TEXT,
     texto        TEXT NOT NULL
 );
@@ -102,6 +103,10 @@ def inicializar() -> None:
                 "INSERT INTO cobradores (cod_usuario, nome, tipo) VALUES (?, ?, ?)",
                 _COBRADORES_INICIAIS,
             )
+        # Atualiza arquivos criados por versões anteriores (coluna nova)
+        cols = {r[1] for r in con.execute("PRAGMA table_info(anotacoes)")}
+        if "canal" not in cols:
+            con.execute("ALTER TABLE anotacoes ADD COLUMN canal TEXT")
         # Troca nomes provisórios ("Cobrador 1234") pelos nomes conhecidos
         for cod, nome, _tipo in _COBRADORES_INICIAIS:
             con.execute(
@@ -230,14 +235,15 @@ def carteira_do_ciclo(ciclo_id: int) -> pd.DataFrame:
 
 # ------------------------------ anotações ---------------------------------
 def salvar_anotacao(
-    codcli: str, cod_usuario: str, cd_negocia: str, resultado: str, texto: str
+    codcli: str, cod_usuario: str, cd_negocia: str, canal: str | None, resultado: str, texto: str
 ) -> None:
     agora = datetime.now().isoformat(timespec="seconds")
     with _conectar() as con:
         con.execute(
-            "INSERT INTO anotacoes (codcli, cod_usuario, criado_em, cd_negocia, resultado, texto)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (codcli, cod_usuario, agora, cd_negocia, resultado, texto.strip()),
+            "INSERT INTO anotacoes"
+            " (codcli, cod_usuario, criado_em, cd_negocia, canal, resultado, texto)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (codcli, cod_usuario, agora, cd_negocia, canal, resultado, texto.strip()),
         )
 
 
@@ -245,11 +251,19 @@ def anotacoes(codigos: list[str], desde: str | None = None) -> pd.DataFrame:
     """Anotações feitas no app para os clientes informados (mais recentes primeiro)."""
     if not codigos:
         return pd.DataFrame(
-            columns=["codcli", "cod_usuario", "criado_em", "cd_negocia", "resultado", "texto"]
+            columns=[
+                "codcli",
+                "cod_usuario",
+                "criado_em",
+                "cd_negocia",
+                "canal",
+                "resultado",
+                "texto",
+            ]
         )
     marcas = ",".join("?" * len(codigos))
     sql = (
-        "SELECT codcli, cod_usuario, criado_em, cd_negocia, resultado, texto "
+        "SELECT codcli, cod_usuario, criado_em, cd_negocia, canal, resultado, texto "
         f"FROM anotacoes WHERE codcli IN ({marcas})"
     )
     params: list = list(codigos)

@@ -8,7 +8,7 @@ import streamlit as st
 
 from data import carteira_store as store
 
-COR_SERIE = "#2a78d6"  # cor única das barras (uma série só, sem legenda)
+COR_SERIE = "#00A5AC"  # cor única das barras (uma série só, sem legenda)
 COR_TINTA_SEC = "#52514e"
 
 

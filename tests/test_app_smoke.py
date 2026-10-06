@@ -172,13 +172,16 @@ def test_rotina_e_anotacao(siac_falso):
 
     # Escreve uma anotação no 1º cliente da rotina
     cli = rotina[0]
+    at.radio(key=f"tipo_rot_{cli}").set_value(config.CONTATO_EFETIVO)
+    at.radio(key=f"canal_rot_{cli}").set_value("WhatsApp")
     at.text_area(key=f"txt_rot_{cli}").set_value("Falei com o dono, paga sexta.")
-    at.selectbox(key=f"res_rot_{cli}").set_value("11")
-    form_btn = next(b for b in at.button if b.label == "💾 Salvar anotação")
+    form_btn = next(b for b in at.button if b.label == "💾 Salvar")
     form_btn.click().run()
     assert not at.exception, at.exception
     notas = carteira_store.anotacoes([cli])
     assert notas.iloc[0]["texto"] == "Falei com o dono, paga sexta."
     assert notas.iloc[0]["cod_usuario"] == "3522"
+    assert notas.iloc[0]["canal"] == "WhatsApp"
+    assert notas.iloc[0]["resultado"] == "CONTATO EFETIVO · WHATSAPP"
     # agora o cliente conta como contatado hoje
     assert cli in servico.contatados_hoje(carteira_store.obter_ciclo(servico.mes_atual()))
