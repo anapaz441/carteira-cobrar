@@ -102,3 +102,11 @@ def usuarios_que_cobraram(dias: int = 30) -> pd.DataFrame:
         ORDER BY ligacoes DESC
     """
     return get_conn().query(sql, params={"dias": dias}, ttl=config.TTL_FREQUENTE)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def tipos_negociacao() -> pd.DataFrame:
+    """Resultados possíveis de uma ligação (tabela cobtpneg do SIAC)."""
+    return get_conn().query(
+        "SELECT cd_negocia, ds_negocia FROM public.cobtpneg ORDER BY cd_negocia", ttl=86400
+    )

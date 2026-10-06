@@ -23,6 +23,9 @@ uv run streamlit run app.py
 - A carteira salva fica em SQLite (`data/carteira_store.py`), não no SIAC (somente leitura).
 - Distribuição: `domain/distribuicao.py` (guloso por loja/valor + ajuste fino por trocas na
   mesma loja). Testado com os clientes reais em `tests/fixtures`.
+- Perfis: `ui/sessao.py` + `app.py` (cobrador só vê `views/carteira_cobrador.py`; gestor tudo).
+- Anotações e rotinas ficam no SQLite (tabelas `anotacoes` e `rotinas`) e NÃO vão para o SIAC.
+- Recuperado = `lanca` paga desde a entrada do cliente, de títulos que estavam na faixa naquela data.
 - Regras ajustáveis: `config.py`.
 
 ## Dependências principais

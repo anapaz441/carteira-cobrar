@@ -8,8 +8,10 @@ import streamlit as st
 import config
 from domain import progresso, servico
 from ui import componentes as ui
+from ui import sessao
 
 st.title("📊 Visão geral da cobrança")
+sessao.exigir_gestor()
 
 ciclo = ui.seletor_ciclo()
 if ciclo is None:
@@ -37,8 +39,8 @@ resumo = progresso.resumo_por_cobrador(df, cob)
 ritmo = progresso.ritmo_esperado(date.today(), inicio)
 
 # ---------------------------- cartões do topo ------------------------------
-vl_ini = df["vl_vencido_ini"].sum()
-vl_atual = df["vl_vencido"].sum()
+vl_ini = df["vl_faixa_ini"].sum()
+vl_atual = df["vl_faixa"].sum()
 recuperado = df["recuperado"].sum()
 n = df.height
 meta_total = n * config.META_CONTATOS
@@ -47,15 +49,20 @@ feitos = int(df["contatos"].clip(upper_bound=config.META_CONTATOS).sum())
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Clientes na carteira", n)
 c2.metric(
-    "Débito ao gerar",
+    "Na faixa ao gerar",
     ui.brl_curto(vl_ini),
-    help="Débito vencido total quando a carteira foi gerada",
+    help="Títulos de 16–60 dias quando cada cliente entrou na carteira",
 )
-c3.metric("Débito hoje", ui.brl_curto(vl_atual))
+c3.metric(
+    "Em aberto na faixa hoje",
+    ui.brl_curto(vl_atual),
+    help="Títulos que HOJE estão com 16–60 dias de atraso nesses clientes",
+)
 c4.metric(
     "Recuperado",
     ui.brl_curto(recuperado),
-    f"{ui.pct(recuperado / vl_ini if vl_ini else 0)} do débito",
+    f"{ui.pct(recuperado / vl_ini if vl_ini else 0)} do que estava na faixa",
+    help="Quanto foi pago dos títulos que estavam na faixa quando o cliente entrou na carteira",
 )
 
 c5, c6, c7, c8 = st.columns(4)
@@ -97,7 +104,7 @@ with col_t:
             "tipo",
             "clientes",
             "vl_faixa_ini",
-            "vl_vencido_ini",
+            "vl_faixa_atual",
             "recuperado",
             "pct_recuperado",
             "contatos",
@@ -113,9 +120,11 @@ with col_t:
             "nome": "Cobrador",
             "tipo": "Tipo",
             "clientes": "Clientes",
-            "vl_faixa_ini": st.column_config.NumberColumn("Débito 16–60d (R$)", format="localized"),
-            "vl_vencido_ini": st.column_config.NumberColumn(
-                "Débito total (R$)", format="localized"
+            "vl_faixa_ini": st.column_config.NumberColumn(
+                "Na faixa ao gerar (R$)", format="localized"
+            ),
+            "vl_faixa_atual": st.column_config.NumberColumn(
+                "Em aberto na faixa (R$)", format="localized"
             ),
             "recuperado": st.column_config.NumberColumn("Recuperado (R$)", format="localized"),
             "pct_recuperado": st.column_config.NumberColumn("% recup.", format="percent"),
@@ -138,8 +147,8 @@ st.dataframe(
         "prioridade",
         "loja",
         "clientes",
-        "vl_vencido_ini",
-        "vl_vencido_atual",
+        "vl_faixa_ini",
+        "vl_faixa_atual",
         "recuperado",
         "progresso",
         "sem_contato",
@@ -150,8 +159,10 @@ st.dataframe(
         "prioridade": "Prior.",
         "loja": "Loja",
         "clientes": "Clientes",
-        "vl_vencido_ini": st.column_config.NumberColumn("Débito ao gerar (R$)", format="localized"),
-        "vl_vencido_atual": st.column_config.NumberColumn("Débito hoje (R$)", format="localized"),
+        "vl_faixa_ini": st.column_config.NumberColumn("Na faixa ao gerar (R$)", format="localized"),
+        "vl_faixa_atual": st.column_config.NumberColumn(
+            "Em aberto na faixa (R$)", format="localized"
+        ),
         "recuperado": st.column_config.NumberColumn("Recuperado (R$)", format="localized"),
         "progresso": st.column_config.ProgressColumn(
             "Meta de contatos", min_value=0, max_value=1, format="percent"

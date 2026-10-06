@@ -46,6 +46,25 @@ CREATE TABLE IF NOT EXISTS carteira (
     entrou_em        TEXT NOT NULL,
     PRIMARY KEY (ciclo_id, codcli)
 );
+-- Anotações / contatos registrados pelo próprio app (o SIAC é só leitura)
+CREATE TABLE IF NOT EXISTS anotacoes (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    codcli       TEXT NOT NULL,
+    cod_usuario  TEXT NOT NULL,
+    criado_em    TEXT NOT NULL,          -- 'AAAA-MM-DDTHH:MM:SS'
+    cd_negocia   TEXT NOT NULL,          -- código cobtpneg ou 'SO_ANOTACAO'
+    resultado    TEXT,
+    texto        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_anotacoes_cli ON anotacoes (codcli, criado_em);
+-- Rotina do dia de cada cobrador (lista de clientes para trabalhar)
+CREATE TABLE IF NOT EXISTS rotinas (
+    cod_usuario  TEXT NOT NULL,
+    dia          TEXT NOT NULL,          -- 'AAAA-MM-DD'
+    ordem        INTEGER NOT NULL,
+    codcli       TEXT NOT NULL,
+    PRIMARY KEY (cod_usuario, dia, codcli)
+);
 """
 
 # Cobradores iniciais (matrículas do SIAC informadas pela Ana em 06/10/2026).
@@ -207,3 +226,55 @@ def carteira_do_ciclo(ciclo_id: int) -> pd.DataFrame:
             con,
             params=(ciclo_id,),
         )
+
+
+# ------------------------------ anotações ---------------------------------
+def salvar_anotacao(
+    codcli: str, cod_usuario: str, cd_negocia: str, resultado: str, texto: str
+) -> None:
+    agora = datetime.now().isoformat(timespec="seconds")
+    with _conectar() as con:
+        con.execute(
+            "INSERT INTO anotacoes (codcli, cod_usuario, criado_em, cd_negocia, resultado, texto)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (codcli, cod_usuario, agora, cd_negocia, resultado, texto.strip()),
+        )
+
+
+def anotacoes(codigos: list[str], desde: str | None = None) -> pd.DataFrame:
+    """Anotações feitas no app para os clientes informados (mais recentes primeiro)."""
+    if not codigos:
+        return pd.DataFrame(
+            columns=["codcli", "cod_usuario", "criado_em", "cd_negocia", "resultado", "texto"]
+        )
+    marcas = ",".join("?" * len(codigos))
+    sql = (
+        "SELECT codcli, cod_usuario, criado_em, cd_negocia, resultado, texto "
+        f"FROM anotacoes WHERE codcli IN ({marcas})"
+    )
+    params: list = list(codigos)
+    if desde:
+        sql += " AND criado_em >= ?"
+        params.append(desde)
+    with _conectar() as con:
+        return pd.read_sql(sql + " ORDER BY criado_em DESC", con, params=params)
+
+
+# ------------------------------- rotinas ----------------------------------
+def salvar_rotina(cod_usuario: str, dia: str, codigos: list[str]) -> None:
+    """Grava (substitui) a rotina do dia do cobrador."""
+    with _conectar() as con:
+        con.execute("DELETE FROM rotinas WHERE cod_usuario = ? AND dia = ?", (cod_usuario, dia))
+        con.executemany(
+            "INSERT INTO rotinas (cod_usuario, dia, ordem, codcli) VALUES (?, ?, ?, ?)",
+            [(cod_usuario, dia, i, c) for i, c in enumerate(codigos)],
+        )
+
+
+def rotina_do_dia(cod_usuario: str, dia: str) -> list[str]:
+    with _conectar() as con:
+        rows = con.execute(
+            "SELECT codcli FROM rotinas WHERE cod_usuario = ? AND dia = ? ORDER BY ordem",
+            (cod_usuario, dia),
+        ).fetchall()
+    return [r[0] for r in rows]

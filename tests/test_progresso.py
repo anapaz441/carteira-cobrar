@@ -63,7 +63,29 @@ def test_montar_carteira_status():
     contagem = pl.DataFrame(
         {"codcli": ["1"], "contatos": [6], "efetivos": [2], "contatos_dono": [6]}
     )
-    ultimo = pl.DataFrame({"codcli": ["1"], "ult_usuario": ["A"]})
+    ultimo = progresso.combinar_ultimo(
+        pl.DataFrame(
+            {
+                "codcli": ["1"],
+                "ult_data": [date(2026, 10, 2)],
+                "ult_hora": ["10:00:00"],
+                "ult_usuario": ["A"],
+                "ult_resultado": ["X"],
+                "ult_texto": ["siac"],
+            }
+        ),
+        pl.DataFrame(
+            {
+                "codcli": ["1"],
+                "cod_usuario": ["B"],
+                "criado_em": ["2026-10-03T09:00:00"],
+                "cd_negocia": ["11"],
+                "resultado": ["EM NEGOCIACAO"],
+                "texto": ["app"],
+            }
+        ),
+    )
+    recuperado = pl.DataFrame({"codcli": ["1", "3"], "vl_recuperado": [100.0, 999.0]})
     cob = pl.DataFrame(
         {
             "cod_usuario": ["A", "B"],
@@ -71,14 +93,17 @@ def test_montar_carteira_status():
             "tipo": ["Integral", "Parcial"],
         }
     )
-    df = progresso.montar_carteira(cart, situacao, contagem, ultimo, cob).sort("codcli")
+    df = progresso.montar_carteira(cart, situacao, contagem, ultimo, cob, recuperado).sort("codcli")
     assert df["status"].to_list() == [
         progresso.STATUS_META,
         progresso.STATUS_SEM_CONTATO,
         progresso.STATUS_REGULARIZADO,
     ]
     assert df["progresso"].to_list() == [1.0, 0.0, 1.0]
+    # recuperado limitado ao que estava na faixa (cliente 3: 999 pago, faixa era 300)
     assert df["recuperado"].to_list() == [100.0, 0.0, 300.0]
+    assert df["ult_contato"][0] == "03/10 09:00 · Bia"  # anotação do app é mais nova
+    assert df["ult_texto"][0] == "[app] app"
     assert df["cliente"][2] == "C3"  # pegou o nome guardado
     assert df["loja"].to_list() == ["Goiânia", "Recife", "Gama"]
     res = progresso.resumo_por_cobrador(df, cob)
@@ -88,3 +113,24 @@ def test_montar_carteira_status():
 def test_ritmo_esperado():
     assert progresso.ritmo_esperado(date(2026, 10, 31), date(2026, 10, 1)) == 1.0
     assert progresso.ritmo_esperado(date(2026, 10, 1), date(2026, 10, 1)) == pytest.approx(1 / 31)
+
+
+def test_formatar_telefones_remove_numero_antigo_sem_9():
+    t = progresso.formatar_telefones("6191366969,61991366969,6136131029")
+    assert t == "(61) 99136-6969 / (61) 3613-1029"
+    assert progresso.formatar_telefones(None) == ""
+
+
+def test_anotacoes_como_contatos_ignora_so_anotacao():
+    notas = pl.DataFrame(
+        {
+            "codcli": ["1", "1"],
+            "cod_usuario": ["A", "A"],
+            "criado_em": ["2026-10-03T09:00:00", "2026-10-04T09:00:00"],
+            "cd_negocia": ["SO_ANOTACAO", "04"],
+            "resultado": [None, "X"],
+            "texto": ["a", "b"],
+        }
+    )
+    c = progresso.anotacoes_como_contatos(notas)
+    assert c.height == 1 and c["dt_cobran"][0] == date(2026, 10, 4)

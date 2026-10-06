@@ -6,13 +6,13 @@ dividida entre os cobradores (quantidade de clientes e valor proporcionais, loja
 críticas espalhadas entre todos) e acompanha a meta de **6 contatos por cliente**
 usando as ligações que os cobradores já registram na cobrança do SIAC.
 
-Telas:
-- **Minha carteira**: o cobrador escolhe o nome e vê os clientes dele, com barra de
-  contatos (x de 6), telefone/WhatsApp, débito, último contato e quem falou.
-- **Visão geral**: painel da gestão com débito, recuperado e progresso por cobrador e por loja.
-- **Gerar carteira**: prévia e geração da carteira do mês, encaixe de clientes novos e
-  troca manual de cobrador.
-- **Cobradores**: nome, código do SIAC e integral/parcial.
+Perfis (tela **Entrar**):
+- **Cobrador**: escolhe o nome e vê **somente a própria carteira**: cartões (clientes, em
+  aberto na faixa, recuperado e % recuperado), tabela de clientes com contatos "x de 6",
+  todos os telefones, débitos e último contato, além da **Rotina do dia** (lista de quem
+  ligar, com campo para escrever a anotação de cada cliente).
+- **Gestor** (senha `GESTOR_SENHA` no `.env`): Visão geral, carteira de qualquer
+  cobrador, Gerar carteira e Cobradores.
 
 ## Regras de negócio (todas em `config.py`)
 | Regra | Valor |
@@ -22,7 +22,9 @@ Telas:
 | Lojas e prioridade | Goiânia (08 Parque Oeste) → Planaltina → Ceilândia → Gama → SOF → Asa Norte → Recife |
 | Pesos | integral = 1 · parcial = 0,75 |
 | Equilíbrio do valor | débito 16–60 dias (e, com peso menor, o débito total) |
-| Contato | cada ligação registrada no SIAC, no máximo 1 por dia por cliente |
+| Contato | ligação registrada no SIAC **ou** anotação feita no app (exceto "só anotação"), no máximo 1 por dia por cliente |
+| Recuperado | valor pago dos títulos que estavam na faixa 16–60 dias quando o cliente entrou na carteira |
+| Rotina do dia | sem contato primeiro → menos contatos → contato mais antigo → loja crítica → maior débito na faixa |
 | Contato efetivo | exclui 03 ocupado, 04 não atende, 05 número errado, 06/07 responsável ausente/ocupado |
 | Ciclo | mensal; quem entra na faixa no meio do mês é encaixado sem mexer nos demais |
 
@@ -37,7 +39,7 @@ Abre em http://localhost:8501 (precisa estar na rede da empresa ou VPN).
 ## Acesso aos dados
 - **Leitura**: réplica do SIAC (PostgreSQL, schema `public`, somente leitura):
   `lanca` (títulos), `cobranca`/`cobratxt`/`cobtpneg` (ligações), `cliente`.
-- **Gravação**: a carteira gerada e o cadastro de cobradores ficam num arquivo SQLite
+- **Gravação**: a carteira gerada, o cadastro de cobradores, as anotações e as rotinas ficam num arquivo SQLite
   local (`CARTEIRA_DB_PATH`). **No servidor, essa pasta precisa ser persistente e ter backup.**
 
 ## Estrutura

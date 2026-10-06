@@ -9,8 +9,10 @@ import config
 from data import carteira_store as store
 from domain import servico
 from ui import componentes as ui
+from ui import sessao
 
 st.title("⚙️ Gerar carteira")
+sessao.exigir_gestor()
 
 cob = servico.cobradores()
 if cob.is_empty():

@@ -43,16 +43,38 @@ _SQL_AGREGA = """
            STRING_AGG(DISTINCT a.cd_loja, ',')        AS lojas
     FROM abertos a JOIN alvo USING (codclifor)
     GROUP BY a.codclifor
+), fones AS (
+    -- Todos os telefones cadastrados: fixo, fax, celular (SMS) e telefones dos sócios
+    SELECT c.codcli, x.fone
+    FROM public.cliente c
+    JOIN alvo ON alvo.codclifor = c.codcli
+    CROSS JOIN LATERAL (VALUES
+        (COALESCE(c.nu_dddsms, '') || COALESCE(c.nu_telsms, '')),
+        (COALESCE(c.ddd, '') || COALESCE(c.telefone, '')),
+        (COALESCE(c.ddd, '') || COALESCE(c.fax, ''))
+    ) AS x(fone)
+    UNION ALL
+    SELECT s.cd_cliente, y.fone
+    FROM public.clisocio s
+    JOIN alvo ON alvo.codclifor = s.cd_cliente
+    CROSS JOIN LATERAL (VALUES (s.nr_fone1), (s.nr_fone2)) AS y(fone)
+), fones_cli AS (
+    SELECT codcli, STRING_AGG(DISTINCT f, ',') AS telefones
+    FROM (SELECT codcli, REGEXP_REPLACE(fone, '\\D', '', 'g') AS f FROM fones) z
+    WHERE LENGTH(f) >= 10
+    GROUP BY codcli
 )
 SELECT g.codclifor AS codcli, p.cd_loja AS loja_principal, g.lojas,
        g.qt_titulos, g.vl_vencido, g.qt_faixa, g.vl_faixa, g.dias_atraso_max,
        c.cliente, c.fantasia,
        NULLIF(TRIM(COALESCE(c.ddd, '') || ' ' || COALESCE(c.telefone, '')), '')   AS telefone,
        NULLIF(TRIM(COALESCE(c.nu_dddsms, '') || ' ' || COALESCE(c.nu_telsms, '')), '') AS whatsapp,
+       fc.telefones,
        c.email_fin AS email
 FROM agg g
 JOIN por_loja p ON p.codclifor = g.codclifor AND p.rk = 1
 LEFT JOIN public.cliente c ON c.codcli = g.codclifor
+LEFT JOIN fones_cli fc ON fc.codcli = g.codclifor
 """
 
 
@@ -101,3 +123,37 @@ def situacao_atual(codigos: tuple[str, ...]) -> pd.DataFrame:
         sql, params={**_params(), "codigos": list(codigos)}, ttl=config.TTL_FREQUENTE
     )
     return _tipar(df)
+
+
+@st.cache_data(ttl=config.TTL_FREQUENTE, show_spinner=False)
+def recuperado_na_faixa(codigos: tuple[str, ...], datas_ref: tuple[str, ...]) -> pd.DataFrame:
+    """Quanto foi PAGO dos títulos que estavam na faixa 16–60 dias quando o cliente
+    entrou na carteira (data de referência por cliente), desde aquela data.
+
+    Títulos que viraram acordo continuam em aberto no SIAC até a parcela ser paga,
+    então acordo sem pagamento não conta como recuperado.
+    """
+    if not codigos:
+        return pd.DataFrame(columns=["codcli", "qt_pagos", "vl_recuperado"])
+    sql = """
+        WITH ref AS (
+            SELECT * FROM UNNEST(CAST(:codigos AS text[]), CAST(:datas AS date[]))
+                   AS r(codcli, dt_ref)
+        )
+        SELECT r.codcli, COUNT(*) AS qt_pagos, SUM(l.valor) AS vl_recuperado
+        FROM ref r
+        JOIN public.lanca l ON l.codclifor = r.codcli
+        WHERE l.tipo = 'R'
+          AND l.codcon = ANY(:contas)
+          AND l.cd_loja = ANY(:lojas)
+          AND l.vencimento BETWEEN r.dt_ref - :dmax AND r.dt_ref - :dmin
+          AND l.pagamento >= r.dt_ref
+        GROUP BY r.codcli
+    """
+    df = get_conn().query(
+        sql,
+        params={**_params(), "codigos": list(codigos), "datas": list(datas_ref)},
+        ttl=config.TTL_FREQUENTE,
+    )
+    df["vl_recuperado"] = pd.to_numeric(df["vl_recuperado"]).astype(float)
+    return df

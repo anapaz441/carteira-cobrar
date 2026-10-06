@@ -7,8 +7,10 @@ from data import carteira_store as store
 from data.queries import contatos as q_contatos
 from domain.distribuicao import fatias
 from domain.servico import cobradores
+from ui import sessao
 
 st.title("👥 Cobradores")
+sessao.exigir_gestor()
 st.write(
     "O **código** é o usuário do SIAC que aparece nas ligações de cobrança. "
     f"Tempo integral tem peso 1; parcial tem peso {config.PESO_TIPO['Parcial']:.2f} "

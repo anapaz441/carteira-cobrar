@@ -6,6 +6,10 @@ Se a regra mudar (faixa de atraso, meta, peso dos cobradores), mude AQUI.
 
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()  # lê o .env antes de qualquer configuração
+
 # ---------------------------------------------------------------------------
 # Cache (segundos). O SIAC em `public` é réplica em tempo real; o ttl só diz
 # quanto a TELA pode atrasar. Contatos: 2 min para o cobrador ver o progresso
@@ -78,6 +82,19 @@ DIAS_HISTORICO_ULTIMO_CONTATO = 365
 # persistente e com backup.
 # ---------------------------------------------------------------------------
 CAMINHO_BANCO_CARTEIRA = os.getenv("CARTEIRA_DB_PATH", "dados_app/carteira.db")
+
+# ---------------------------------------------------------------------------
+# Acesso
+# Senha da visão de GESTOR (gerar carteira, ver todos). Fica no .env.
+# ---------------------------------------------------------------------------
+GESTOR_SENHA = os.getenv("GESTOR_SENHA", "")
+
+# ---------------------------------------------------------------------------
+# Rotina do dia
+# ---------------------------------------------------------------------------
+ROTINA_TAMANHO_PADRAO = 15  # quantos clientes entram na rotina gerada
+# Código usado quando a pessoa só escreve uma informação (não conta como contato)
+SO_ANOTACAO = "SO_ANOTACAO"
 
 # Nomes de coluna exibidos na tela
 COLUNAS_PT = {
