@@ -213,7 +213,7 @@ def painel(ciclo: dict) -> pl.DataFrame:
 def historico(codcli: str) -> pl.DataFrame:
     """Histórico do cliente: ligações do SIAC (120 dias) + anotações do app, juntas."""
     siac = pl.from_pandas(q_contatos.historico_cliente(codcli))
-    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows())
+    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows()) | config.GESTORES
     partes = []
     if not siac.is_empty():
         partes.append(
@@ -318,7 +318,7 @@ def clientes_acordo_atrasado(ciclo: dict, cod_usuario: str) -> pl.DataFrame:
     if not sit.is_empty():
         df = df.join(sit, on="codcli", how="left")
     df = df.join(cont, on="codcli", how="left").join(ult, on="codcli", how="left")
-    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows())
+    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows()) | config.GESTORES
     for col, tipo in (
         ("qt_titulos", pl.Int64),
         ("vl_vencido", pl.Float64),
@@ -439,7 +439,7 @@ def meus_acordos(cod_usuario: str, ciclo: dict | None = None) -> pl.DataFrame:
     # Último contato com o cliente (SIAC ou app), de qualquer cobrador
     codigos = tuple(sorted(set(meus["codcli"].to_list())))
     ultimo = progresso.combinar_ultimo(_ultimo_siac(codigos), _notas(codigos))
-    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows())
+    nomes = dict(cobradores(False).select("cod_usuario", "nome").iter_rows()) | config.GESTORES
     ultimo = ultimo.with_columns(
         pl.when(pl.col("ult_quando").is_not_null())
         .then(

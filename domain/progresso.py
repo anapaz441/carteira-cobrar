@@ -147,7 +147,7 @@ def montar_carteira(
     ultimo:     saída de combinar_ultimo (codcli, ult_quando, ult_usuario, ...)
     recuperado: codcli, vl_recuperado (pago dos títulos que estavam na faixa)
     """
-    nomes = dict(cobradores.select("cod_usuario", "nome").iter_rows())
+    nomes = dict(cobradores.select("cod_usuario", "nome").iter_rows()) | config.GESTORES
     if recuperado is None or recuperado.is_empty():
         recuperado = pl.DataFrame(schema={"codcli": pl.Utf8, "vl_recuperado": pl.Float64})
     if "telefones" not in situacao.columns:

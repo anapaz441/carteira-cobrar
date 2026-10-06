@@ -21,7 +21,6 @@ COBS = ["8177", "3522", "8526", "2281", "4366", "4369"]
 @pytest.fixture
 def siac_falso(monkeypatch, tmp_path, clientes):
     monkeypatch.setattr(config, "CAMINHO_BANCO_CARTEIRA", str(tmp_path / "carteira.db"))
-    monkeypatch.setattr(config, "GESTOR_SENHA", "segredo")
     base = clientes.to_pandas()
     base["cliente"] = "CLIENTE " + base["codcli"]
     base["fantasia"] = None
@@ -204,20 +203,16 @@ def test_login_e_perfis(siac_falso):
     at = _app()
     assert at.radio[0].options == ["Sou cobrador(a)", "Sou gestor(a)"]
 
-    # Gestor com senha errada / certa
+    # Gestora: escolhe o nome, sem senha
     at.radio[0].set_value("Sou gestor(a)").run()
-    at.text_input[0].set_value("2184").run()
-    at.text_input[1].set_value("errada").run()
-    at.button[0].click().run()
-    assert any("incorreta" in e.value for e in at.error)
-    at.text_input[0].set_value("9999").run()  # matrícula que não é gestor
-    at.text_input[1].set_value("segredo").run()
-    at.button[0].click().run()
-    assert any("incorreta" in e.value for e in at.error)
-    at.text_input[0].set_value("1386").run()
+    assert not at.text_input  # não pede matrícula nem senha
+    sel = next(s for s in at.selectbox if s.label == "Seu nome")
+    assert sel.options == ["Ana", "Angélica", "Carla"]
+    sel.set_value("2184").run()
     at.button[0].click().run()
     assert at.session_state["perfil"] == "gestor"
-    assert at.session_state["cod_usuario"] == "1386"
+    assert at.session_state["nome_usuario"] == "Angélica"
+    assert at.session_state["cod_usuario"] == "2184"
 
     carteira_store.inicializar()
     servico.gerar_carteira(servico.mes_atual(), HOJE)

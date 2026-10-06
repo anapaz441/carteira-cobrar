@@ -1,7 +1,5 @@
 """Tela: Entrar — escolhe o perfil (cobrador ou gestor)."""
 
-import hmac
-
 import streamlit as st
 
 import config
@@ -26,18 +24,15 @@ if tipo.startswith("Sou cobrador"):
         sessao.entrar(sessao.PERFIL_COBRADOR, cod, nomes[cod])
         st.rerun()
 else:
-    if not config.GESTOR_SENHA:
-        caixa.error(
-            "A senha do gestor ainda não foi configurada. Coloque a linha "
-            "`GESTOR_SENHA=sua-senha` no arquivo `.env` e reinicie o app."
-        )
-        st.stop()
-    matricula = caixa.text_input("Matrícula").strip()
-    senha = caixa.text_input("Senha", type="password")
-    if caixa.button("Entrar", type="primary", width="stretch"):
-        senha_ok = hmac.compare_digest(senha.encode(), config.GESTOR_SENHA.encode())
-        if matricula in config.GESTORES and senha_ok:
-            sessao.entrar(sessao.PERFIL_GESTOR, matricula, f"Gestão · {matricula}")
-            st.rerun()
-        else:
-            caixa.error("Matrícula ou senha incorreta.")
+    gestoras = config.GESTORES
+    cod = caixa.selectbox(
+        "Seu nome",
+        list(gestoras),
+        format_func=gestoras.get,
+        index=None,
+        placeholder="Escolha seu nome",
+        key="gestora",
+    )
+    if caixa.button("Entrar", type="primary", disabled=cod is None, width="stretch"):
+        sessao.entrar(sessao.PERFIL_GESTOR, cod, gestoras[cod])
+        st.rerun()

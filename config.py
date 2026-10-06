@@ -85,11 +85,14 @@ CAMINHO_BANCO_CARTEIRA = os.getenv("CARTEIRA_DB_PATH", "dados_app/carteira.db")
 
 # ---------------------------------------------------------------------------
 # Acesso
-# Senha da visão de GESTOR (gerar carteira, ver todos). Fica no .env.
+# Gestoras (visão geral, gerar carteira, ver todos). Entram escolhendo o nome, sem senha.
+# matrícula -> nome (a matrícula fica gravada nas anotações que a gestora escreve)
 # ---------------------------------------------------------------------------
-GESTOR_SENHA = os.getenv("GESTOR_SENHA", "")
-# Matrículas que podem entrar como gestor (todas usam a mesma senha acima)
-GESTORES = tuple(m.strip() for m in os.getenv("GESTORES", "2184,1386,8630").split(",") if m.strip())
+GESTORES: dict[str, str] = {
+    "8630": "Ana",
+    "1386": "Angélica",
+    "2184": "Carla",
+}
 
 # ---------------------------------------------------------------------------
 # Rotina do dia
