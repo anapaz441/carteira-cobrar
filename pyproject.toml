@@ -1,0 +1,22 @@
+[project]
+name = "carteira-cobranca"
+version = "0.1.0"
+description = "Carteira de cobrança 16-60 dias: distribuição entre cobradores e acompanhamento de contatos"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=3.0.6",
+    "plotly>=7.1.0",
+    "polars>=2.0.0",
+    "psycopg2-binary>=2.9.13",
+    "python-dotenv>=1.2.4",
+    "sqlalchemy>=2.1.3",
+    "streamlit>=1.65.0",
+]
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.19.1",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]

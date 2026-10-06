@@ -1,0 +1,104 @@
+"""Constantes do app Carteira de Cobrança.
+
+Tudo que é "regra de negócio ajustável" fica aqui, num lugar só.
+Se a regra mudar (faixa de atraso, meta, peso dos cobradores), mude AQUI.
+"""
+
+import os
+
+# ---------------------------------------------------------------------------
+# Cache (segundos). O SIAC em `public` é réplica em tempo real; o ttl só diz
+# quanto a TELA pode atrasar. Contatos: 2 min para o cobrador ver o progresso
+# logo depois de registrar a ligação no SIAC.
+# ---------------------------------------------------------------------------
+TTL_FREQUENTE = 300  # 5 min — títulos em aberto / clientes elegíveis
+TTL_CONTATOS = 120  # 2 min — ligações registradas no SIAC
+
+# ---------------------------------------------------------------------------
+# Faixa de atraso da carteira
+# Regra combinada: entra o cliente que tem PELO MENOS UM título vencido
+# entre 16 e 60 dias (mesmo que tenha outros mais antigos).
+# ---------------------------------------------------------------------------
+DIAS_ATRASO_MIN = 16
+DIAS_ATRASO_MAX = 60
+
+# Contas (codcon) consideradas como débito do cliente
+CONTAS_DEBITO = ("0001", "0021")  # 0001 = Venda faturada | 0021 = Serasa (automático)
+
+# ---------------------------------------------------------------------------
+# Lojas — na ordem de PRIORIDADE (1 = mais crítica).
+# Goiânia = Parque Oeste (08) no SIAC. Pecista (01) e Vendas Online ficam de fora.
+# ---------------------------------------------------------------------------
+LOJAS_PRIORIDADE: dict[str, str] = {
+    "08": "Goiânia",
+    "07": "Planaltina",
+    "04": "Ceilândia",
+    "05": "Gama",
+    "06": "SOF",
+    "03": "Asa Norte",
+    "10": "Recife",
+}
+LOJAS_CARTEIRA = tuple(LOJAS_PRIORIDADE.keys())
+PRIORIDADE_LOJA = {cod: i + 1 for i, cod in enumerate(LOJAS_PRIORIDADE)}
+
+# ---------------------------------------------------------------------------
+# Cobradores
+# Tempo integral = peso 1. Parcial = 1/4 a menos (0,75).
+# ---------------------------------------------------------------------------
+PESO_TIPO = {"Integral": 1.0, "Parcial": 0.75}
+
+# Na distribuição, quanto pesa equilibrar cada coisa (quantidade x valor x loja).
+PESO_EQUILIBRIO_QTD = 1.0
+PESO_EQUILIBRIO_VALOR = 1.0
+PESO_EQUILIBRIO_LOJA = 0.5
+
+# Qual valor é usado para equilibrar a carteira:
+#  "vl_vencido" = tudo que o cliente deve vencido | "vl_faixa" = só títulos 16–60 dias
+METRICA_VALOR_EQUILIBRIO = "vl_faixa"
+# Peso do débito vencido TOTAL no ajuste fino (0 = ignora; 1 = tão importante quanto o principal)
+PESO_VALOR_SECUNDARIO = 0.5
+
+# ---------------------------------------------------------------------------
+# Meta de contatos
+# ---------------------------------------------------------------------------
+META_CONTATOS = 6
+# Conta no máximo 1 contato por cliente por dia (evita 6 ligações seguidas valerem a meta)
+UM_CONTATO_POR_DIA = True
+
+# Resultados da ligação (cobtpneg) que NÃO contam como contato efetivo
+# (não conseguiu falar com quem decide).
+NEGOCIACAO_NAO_EFETIVA = ("03", "04", "05", "06", "07")
+
+# Quantos dias para trás buscar o "último contato" do cliente
+DIAS_HISTORICO_ULTIMO_CONTATO = 365
+
+# ---------------------------------------------------------------------------
+# Onde fica salvo a carteira gerada (o SIAC é só leitura).
+# É um arquivo SQLite local do app. No servidor, a TI deve manter essa pasta
+# persistente e com backup.
+# ---------------------------------------------------------------------------
+CAMINHO_BANCO_CARTEIRA = os.getenv("CARTEIRA_DB_PATH", "dados_app/carteira.db")
+
+# Nomes de coluna exibidos na tela
+COLUNAS_PT = {
+    "prioridade": "Prior.",
+    "loja": "Loja",
+    "codcli": "Código",
+    "cliente": "Cliente",
+    "fantasia": "Fantasia",
+    "telefone": "Telefone",
+    "whatsapp": "Celular/WhatsApp",
+    "qt_titulos": "Qtd títulos",
+    "vl_vencido": "Débito vencido (R$)",
+    "vl_faixa": "Débito 16–60d (R$)",
+    "dias_atraso_max": "Dias atraso (máx)",
+    "contatos": "Contatos",
+    "efetivos": "Efetivos",
+    "progresso": "Progresso meta",
+    "ult_data": "Último contato",
+    "ult_quem": "Quem falou",
+    "ult_resultado": "Resultado",
+    "ult_texto": "Anotação",
+    "prox_ligacao": "Próx. ligação",
+    "status": "Situação",
+}

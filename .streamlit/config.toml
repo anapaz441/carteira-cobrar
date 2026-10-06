@@ -1,0 +1,13 @@
+[theme]
+primaryColor = "#E63329"
+base = "light"
+
+[server]
+headless = true
+enableXsrfProtection = true
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
